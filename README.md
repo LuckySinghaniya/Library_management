@@ -19,35 +19,20 @@ To develop a Library Management System that efficiently manages books, members, 
 
 ```cpp
 #include <iostream>
-#include <vector>
+#include <fstream>
 #include <string>
+#include <cstdio>
+
 using namespace std;
 
-class Book {
-public:
-    int bookId;
-    string title;
-    string author;
-    bool issued;
-
-    Book(int id, string t, string a) {
-        bookId = id;
-        title = t;
-        author = a;
-        issued = false;
-    }
-};
-
 class Library {
-private:
-    vector<Book> books;
-
 public:
+
     void addBook() {
         int id;
         string title, author;
 
-        cout << "Enter Book ID: ";
+        cout << "\nEnter Book ID: ";
         cin >> id;
         cin.ignore();
 
@@ -57,166 +42,323 @@ public:
         cout << "Enter Author Name: ";
         getline(cin, author);
 
-        books.push_back(Book(id, title, author));
+        ofstream file("books.txt", ios::app);
+
+        file << id << "|"
+             << title << "|"
+             << author << "|0" << endl;
+
+        file.close();
 
         cout << "\nBook Added Successfully!\n";
     }
 
     void displayBooks() {
-        if (books.empty()) {
-            cout << "\nNo Books Available!\n";
-            return;
-        }
+        ifstream file("books.txt");
 
-        cout << "\n------ Book List ------\n";
+        string line;
 
-        for (auto &b : books) {
-            cout << "\nBook ID : " << b.bookId;
-            cout << "\nTitle   : " << b.title;
-            cout << "\nAuthor  : " << b.author;
+        cout << "\n========== BOOK LIST ==========\n";
+
+        bool found = false;
+
+        while (getline(file, line)) {
+            found = true;
+
+            size_t p1 = line.find('|');
+            size_t p2 = line.find('|', p1 + 1);
+            size_t p3 = line.find('|', p2 + 1);
+
+            string id = line.substr(0, p1);
+            string title = line.substr(p1 + 1, p2 - p1 - 1);
+            string author = line.substr(p2 + 1, p3 - p2 - 1);
+            string status = line.substr(p3 + 1);
+
+            cout << "\nBook ID : " << id;
+            cout << "\nTitle   : " << title;
+            cout << "\nAuthor  : " << author;
             cout << "\nStatus  : "
-                 << (b.issued ? "Issued" : "Available")
-                 << "\n";
+                 << (status == "0" ? "Available" : "Issued");
+            cout << "\n-----------------------------";
         }
+
+        if (!found)
+            cout << "\nNo Books Available!\n";
+
+        file.close();
     }
 
     void searchByTitle() {
         string title;
+
         cin.ignore();
 
-        cout << "Enter Title: ";
+        cout << "\nEnter Book Title: ";
         getline(cin, title);
 
+        ifstream file("books.txt");
+
+        string line;
         bool found = false;
 
-        for (auto &b : books) {
-            if (b.title == title) {
-                cout << "\nBook Found\n";
-                cout << "ID: " << b.bookId
-                     << "\nAuthor: " << b.author
-                     << "\nStatus: "
-                     << (b.issued ? "Issued" : "Available")
-                     << "\n";
+        while (getline(file, line)) {
 
+            size_t p1 = line.find('|');
+            size_t p2 = line.find('|', p1 + 1);
+
+            string fileTitle =
+                line.substr(p1 + 1, p2 - p1 - 1);
+
+            if (fileTitle == title) {
+                cout << "\nBook Found:\n";
+                cout << line << endl;
                 found = true;
             }
         }
 
         if (!found)
             cout << "\nBook Not Found!\n";
+
+        file.close();
     }
 
     void searchByAuthor() {
         string author;
+
         cin.ignore();
 
-        cout << "Enter Author Name: ";
+        cout << "\nEnter Author Name: ";
         getline(cin, author);
 
+        ifstream file("books.txt");
+
+        string line;
         bool found = false;
 
-        for (auto &b : books) {
-            if (b.author == author) {
-                cout << "\nBook Found\n";
-                cout << "ID: " << b.bookId
-                     << "\nTitle: " << b.title
-                     << "\nStatus: "
-                     << (b.issued ? "Issued" : "Available")
-                     << "\n";
+        while (getline(file, line)) {
 
+            size_t p1 = line.find('|');
+            size_t p2 = line.find('|', p1 + 1);
+            size_t p3 = line.find('|', p2 + 1);
+
+            string fileAuthor =
+                line.substr(p2 + 1, p3 - p2 - 1);
+
+            if (fileAuthor == author) {
+                cout << "\nBook Found:\n";
+                cout << line << endl;
                 found = true;
             }
         }
 
         if (!found)
-            cout << "\nNo Books Found!\n";
+            cout << "\nAuthor Not Found!\n";
+
+        file.close();
     }
 
     void issueBook() {
         int id;
-        cout << "Enter Book ID to Issue: ";
+
+        cout << "\nEnter Book ID to Issue: ";
         cin >> id;
 
-        for (auto &b : books) {
-            if (b.bookId == id) {
-                if (!b.issued) {
-                    b.issued = true;
-                    cout << "\nBook Issued Successfully!\n";
-                } else {
+        ifstream file("books.txt");
+        ofstream temp("temp.txt");
+
+        string line;
+        bool found = false;
+
+        while (getline(file, line)) {
+
+            size_t p1 = line.find('|');
+            int bookId = stoi(line.substr(0, p1));
+
+            if (bookId == id) {
+
+                size_t last = line.rfind('|');
+
+                string status = line.substr(last + 1);
+
+                if (status == "1") {
                     cout << "\nBook Already Issued!\n";
+                    temp << line << endl;
                 }
-                return;
+                else {
+                    string updated =
+                        line.substr(0, last + 1) + "1";
+
+                    temp << updated << endl;
+                    cout << "\nBook Issued Successfully!\n";
+                }
+
+                found = true;
+            }
+            else {
+                temp << line << endl;
             }
         }
 
-        cout << "\nBook Not Found!\n";
+        file.close();
+        temp.close();
+
+        remove("books.txt");
+        rename("temp.txt", "books.txt");
+
+        if (!found)
+            cout << "\nBook Not Found!\n";
     }
 
     void returnBook() {
         int id;
-        cout << "Enter Book ID to Return: ";
+
+        cout << "\nEnter Book ID to Return: ";
         cin >> id;
 
-        for (auto &b : books) {
-            if (b.bookId == id) {
-                if (b.issued) {
-                    b.issued = false;
-                    cout << "\nBook Returned Successfully!\n";
-                } else {
-                    cout << "\nBook Was Not Issued!\n";
+        ifstream file("books.txt");
+        ofstream temp("temp.txt");
+
+        string line;
+        bool found = false;
+
+        while (getline(file, line)) {
+
+            size_t p1 = line.find('|');
+            int bookId = stoi(line.substr(0, p1));
+
+            if (bookId == id) {
+
+                size_t last = line.rfind('|');
+
+                string status = line.substr(last + 1);
+
+                if (status == "0") {
+                    cout << "\nBook Is Already Available!\n";
+                    temp << line << endl;
                 }
-                return;
+                else {
+                    string updated =
+                        line.substr(0, last + 1) + "0";
+
+                    temp << updated << endl;
+                    cout << "\nBook Returned Successfully!\n";
+                }
+
+                found = true;
+            }
+            else {
+                temp << line << endl;
             }
         }
 
-        cout << "\nBook Not Found!\n";
+        file.close();
+        temp.close();
+
+        remove("books.txt");
+        rename("temp.txt", "books.txt");
+
+        if (!found)
+            cout << "\nBook Not Found!\n";
+    }
+
+    void deleteBook() {
+        int id;
+
+        cout << "\nEnter Book ID to Delete: ";
+        cin >> id;
+
+        ifstream file("books.txt");
+        ofstream temp("temp.txt");
+
+        string line;
+        bool found = false;
+
+        while (getline(file, line)) {
+
+            size_t p1 = line.find('|');
+            int bookId = stoi(line.substr(0, p1));
+
+            if (bookId == id) {
+                found = true;
+            }
+            else {
+                temp << line << endl;
+            }
+        }
+
+        file.close();
+        temp.close();
+
+        remove("books.txt");
+        rename("temp.txt", "books.txt");
+
+        if (found)
+            cout << "\nBook Deleted Successfully!\n";
+        else
+            cout << "\nBook Not Found!\n";
     }
 };
 
 int main() {
+
     Library lib;
+
     int choice;
 
     do {
-        cout << "\n====== Library Management System ======\n";
+
+        cout << "\n\n========== LIBRARY MANAGEMENT SYSTEM ==========\n";
         cout << "1. Add Book\n";
         cout << "2. Display Books\n";
-        cout << "3. Search by Title\n";
-        cout << "4. Search by Author\n";
+        cout << "3. Search By Title\n";
+        cout << "4. Search By Author\n";
         cout << "5. Issue Book\n";
         cout << "6. Return Book\n";
-        cout << "7. Exit\n";
+        cout << "7. Delete Book\n";
+        cout << "8. Exit\n";
 
-        cout << "Enter Choice: ";
+        cout << "\nEnter Your Choice: ";
         cin >> choice;
 
-        switch(choice) {
-            case 1:
-                lib.addBook();
-                break;
-            case 2:
-                lib.displayBooks();
-                break;
-            case 3:
-                lib.searchByTitle();
-                break;
-            case 4:
-                lib.searchByAuthor();
-                break;
-            case 5:
-                lib.issueBook();
-                break;
-            case 6:
-                lib.returnBook();
-                break;
-            case 7:
-                cout << "\nThank You!\n";
-                break;
-            default:
-                cout << "\nInvalid Choice!\n";
+        switch (choice) {
+
+        case 1:
+            lib.addBook();
+            break;
+
+        case 2:
+            lib.displayBooks();
+            break;
+
+        case 3:
+            lib.searchByTitle();
+            break;
+
+        case 4:
+            lib.searchByAuthor();
+            break;
+
+        case 5:
+            lib.issueBook();
+            break;
+
+        case 6:
+            lib.returnBook();
+            break;
+
+        case 7:
+            lib.deleteBook();
+            break;
+
+        case 8:
+            cout << "\nThank You For Using Library Management System!\n";
+            break;
+
+        default:
+            cout << "\nInvalid Choice!\n";
         }
 
-    } while(choice != 7);
+    } while (choice != 8);
 
     return 0;
 }
